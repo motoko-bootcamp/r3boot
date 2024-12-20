@@ -1,18 +1,27 @@
-import Result "mo:base/Result";
 import Principal "mo:base/Principal";
+import Result "mo:base/Result";
 import Text "mo:base/Text";
-import Error "mo:base/Error";
+
+import Ledger "../modules/ledger";
 shared ({ caller = creator }) actor class You(
 	god : Principal,
-	admin : Principal,
-	yourName : Text
+	user : Principal
 ) = this {
 
-    ////////////
-	// IDENTITY /
+	////////////
+	// ADMIN //
 	///////////
 
-    stable var name = yourName;
+	private let admin = user;
+
+
+	/////////////
+	// LEDGER //
+	////////////
+
+	// We define a module and we can use it
+	stable let ledgerState = Ledger.State.V1.initLeaf(god, Principal.fromActor(this));
+	let ledger = Ledger.Leaf(ledgerState);
 
 	////////////
 	// GAME ///
@@ -20,10 +29,10 @@ shared ({ caller = creator }) actor class You(
 
 	stable var state : Text = "Player is off";
 
-    public shared query ({ caller }) func getState() : async Text {
-        assert(caller == admin);
-        return state;  
-    };
+	public shared query ({ caller }) func getState() : async Text {
+		assert (caller == admin);
+		return state;
+	};
 
 	public shared ({ caller }) func start() : async () {
 		assert (caller == god or caller == admin);
@@ -35,74 +44,19 @@ shared ({ caller = creator }) actor class You(
 		state := "Player is off";
 	};
 
-    
-
-    public type Action = {
-        #transact : Transaction;
-        #move;
-    };
-
-    public type Transaction = {
-        #transfer: Transfer;
-        #mint : Mint;
-    };
-
-    public type Transfer = {
-        from : Principal;
-        to : Principal;
-        amount : Nat; 
-    };
-
-    public type Mint = {
-        to : Principal;
-        amount : Nat;
-    };
-
-    public type Ledger = actor {
-        transfer : shared (transfer : Transfer) -> async ();
-        mint : shared (mint : Mint) -> async ();
-    };
-
-   
+	public type Action = {
+		#transact : Ledger.Action;
+	};
 
 	public shared ({ caller }) func play(
-        action : Action
-    ) : async Result.Result<(), Text> {
-        assert(caller == admin);
-        switch(action){
-            case(#transact(transaction)){
-                let ledger : Ledger = actor("bkyz2-fmaaa-aaaaa-qaaaq-cai");
-
-                switch(transaction){
-                    case(#transfer(transfer)){
-                        try {
-                            await ledger.transfer(transfer);
-                            state := "You've just made a successful transfer";
-                            return #ok();
-                        } catch (e) {
-                            return #err(Error.message(e));
-                        };
-                    };
-                    case(#mint(mint)){  
-                        try {
-                            await ledger.mint(mint);
-                             state := "You've successful minted $BOOT tokens!";
-                            return #ok();
-                        } catch (e) {
-                            return #err(Error.message(e));
-                        };
-                    };
-                };
-
-
-            };
-            case(_) {
-                return #err("Not implemented yet!")
-            };
-
-        };
-
-
+		action : Action
+	) : async Result.Result<(), Text> {
+		assert (caller == admin);
+		switch (action) {
+			case (#transact(transaction)) {
+				await* ledger.transact(transaction);
+			};
+		};
 	};
 
 };
