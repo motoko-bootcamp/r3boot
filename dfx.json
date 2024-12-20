@@ -1,0 +1,18 @@
+{
+    "canisters": {
+      "god": {
+        "main": "src/god/main.mo",
+        "type": "motoko"
+      },
+      "player": {
+        "main": "src/player/main.mo",
+        "type": "motoko"
+      }
+    },
+    "defaults": {
+      "build": {
+        "packtool": "mops sources"
+      }
+    }
+  }
+  
